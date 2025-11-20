@@ -1,0 +1,73 @@
+import { QueryClient, QueryFunction } from "@tanstack/react-query";
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+
+if (import.meta.env.PROD && !API_BASE_URL && window.location.hostname !== 'localhost') {
+  console.error(
+    'WARNING: VITE_API_URL is not configured for production deployment. ' +
+    'API requests may fail. Set VITE_API_URL environment variable to your Workers API URL.'
+  );
+}
+
+function getApiUrl(path: string): string {
+  if (API_BASE_URL) {
+    return `${API_BASE_URL}${path}`;
+  }
+  return path;
+}
+
+async function throwIfResNotOk(res: Response) {
+  if (!res.ok) {
+    const text = (await res.text()) || res.statusText;
+    throw new Error(`${res.status}: ${text}`);
+  }
+}
+
+export async function apiRequest(
+  method: string,
+  url: string,
+  data?: unknown | undefined,
+): Promise<Response> {
+  const res = await fetch(getApiUrl(url), {
+    method,
+    headers: data ? { "Content-Type": "application/json" } : {},
+    body: data ? JSON.stringify(data) : undefined,
+    credentials: "include",
+  });
+
+  await throwIfResNotOk(res);
+  return res;
+}
+
+type UnauthorizedBehavior = "returnNull" | "throw";
+export const getQueryFn: <T>(options: {
+  on401: UnauthorizedBehavior;
+}) => QueryFunction<T> =
+  ({ on401: unauthorizedBehavior }) =>
+  async ({ queryKey }) => {
+    const res = await fetch(getApiUrl(queryKey.join("/") as string), {
+      credentials: "include",
+    });
+
+    if (unauthorizedBehavior === "returnNull" && res.status === 401) {
+      return null;
+    }
+
+    await throwIfResNotOk(res);
+    return await res.json();
+  };
+
+export const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      queryFn: getQueryFn({ on401: "throw" }),
+      refetchInterval: false,
+      refetchOnWindowFocus: false,
+      staleTime: Infinity,
+      retry: false,
+    },
+    mutations: {
+      retry: false,
+    },
+  },
+});
