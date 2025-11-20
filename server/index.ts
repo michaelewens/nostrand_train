@@ -19,6 +19,10 @@ interface Departure {
   app.use(express.urlencoded({ extended: false }));
 
   // API Routes
+  app.get("/ping", (req, res) => {
+    res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
+  });
+
   app.get("/api/departures", async (req, res) => {
     try {
       const response = await fetch(
