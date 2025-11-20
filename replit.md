@@ -8,10 +8,11 @@ A real-time NYC subway departure tracking application displaying live train arri
 
 **Key Features**:
 - Real-time A and C train departures from Nostrand Ave (stop A46N)
+- Train line filter: Toggle between viewing A trains or C trains (defaults to A)
 - Live countdown timers updating every second
 - Automatic data refresh every 30 seconds
 - Manual refresh capability
-- Displays next 5 upcoming trains to Manhattan
+- Displays next 5 upcoming trains for the selected line to Manhattan
 
 ## User Preferences
 
@@ -29,8 +30,9 @@ Preferred communication style: Simple, everyday language.
 
 **State Management**: 
 - React Query (@tanstack/react-query) for server state management, handling API data fetching, caching, and automatic refetching
-- Local React state for UI concerns like countdown timers and real-time updates
+- Local React state for UI concerns like countdown timers, real-time updates, and train line selection
 - Query invalidation and refetching strategy ensures fresh data every 30 seconds
+- Train line filter state (selectedLine) controls which trains are displayed (A or C)
 
 **Design System**:
 - Clean, modern MTA departure board aesthetic
@@ -55,7 +57,9 @@ Preferred communication style: Simple, everyday language.
 2. Express server fetches from Transiter Demo API (https://demo.transiter.dev)
 3. Server filters for A/C trains at Nostrand Ave northbound stop (A46N)
 4. Response transformed to simplified format with route, destination, and arrival timestamp
-5. Client converts Unix timestamps to relative "minutes away" for display
+5. Client filters departures by selected train line (A or C)
+6. Client converts Unix timestamps to relative "minutes away" for display
+7. Clickable route badges in header allow users to toggle between A and C trains
 
 **Development vs Production**:
 - Development mode uses Vite middleware for HMR and fast refresh
