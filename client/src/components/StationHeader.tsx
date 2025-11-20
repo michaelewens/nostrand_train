@@ -10,6 +10,8 @@ interface StationHeaderProps {
   lastUpdated: Date;
   onRefresh: () => void;
   isRefreshing?: boolean;
+  selectedLine: string;
+  onLineSelect: (line: string) => void;
 }
 
 export default function StationHeader({ 
@@ -18,7 +20,9 @@ export default function StationHeader({
   routes, 
   lastUpdated,
   onRefresh,
-  isRefreshing = false
+  isRefreshing = false,
+  selectedLine,
+  onLineSelect
 }: StationHeaderProps) {
   const [timeSinceUpdate, setTimeSinceUpdate] = useState<string>('');
 
@@ -70,8 +74,20 @@ export default function StationHeader({
             {routes.map((route) => (
               <Badge 
                 key={route}
-                variant="secondary"
-                className="text-base font-bold px-3 py-1"
+                variant={selectedLine === route ? "default" : "secondary"}
+                className="text-base font-bold px-3 py-1 cursor-pointer hover-elevate active-elevate-2"
+                style={selectedLine === route ? { backgroundColor: '#0039A6', color: '#FFFFFF' } : undefined}
+                onClick={() => onLineSelect(route)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onLineSelect(route);
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+                aria-pressed={selectedLine === route}
+                aria-label={`Show ${route} train departures`}
                 data-testid={`badge-route-filter-${route}`}
               >
                 {route}
