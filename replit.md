@@ -50,7 +50,9 @@ Preferred communication style: Simple, everyday language.
 
 **Runtime**: Node.js with Express framework.
 
-**API Structure**: RESTful API with a single endpoint `/api/departures` that proxies requests to the Transiter API.
+**API Structure**: RESTful API with the following endpoints:
+- `/api/departures`: Proxies requests to the Transiter API for train data
+- `/ping`: Health check endpoint to keep the service awake (returns status and timestamp)
 
 **Data Flow**:
 1. Client requests departure data via React Query
