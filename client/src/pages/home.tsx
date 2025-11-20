@@ -17,6 +17,7 @@ export default function Home() {
   const [departures, setDepartures] = useState<Departure[]>([]);
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [selectedLine, setSelectedLine] = useState<string>('A');
 
   const { data: apiDepartures, isLoading, refetch } = useQuery<APIDeparture[]>({
     queryKey: ['/api/departures'],
@@ -39,6 +40,7 @@ export default function Home() {
     const updateDepartures = () => {
       const now = Math.floor(Date.now() / 1000);
       const converted = trainData
+        .filter(d => d.route === selectedLine) // Filter by selected line
         .map(d => ({
           route: d.route,
           destination: d.destination,
@@ -54,7 +56,7 @@ export default function Home() {
     const interval = setInterval(updateDepartures, 1000);
 
     return () => clearInterval(interval);
-  }, [trainData]);
+  }, [trainData, selectedLine]);
 
   const handleRefresh = async () => {
     console.log('Refreshing train data...');
@@ -72,6 +74,8 @@ export default function Home() {
         lastUpdated={lastUpdated}
         onRefresh={handleRefresh}
         isRefreshing={isRefreshing}
+        selectedLine={selectedLine}
+        onLineSelect={setSelectedLine}
       />
 
       <main className="max-w-2xl mx-auto p-4">
