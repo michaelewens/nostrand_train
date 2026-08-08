@@ -22,7 +22,7 @@ export function buildDisplayPayload(
 
   return displayPayloadSchema.parse({
     version: 1,
-    station: { name: "Nostrand Av", direction: "Manhattan", stopId: "A46N" },
+    station: { name: "Nostrand Ave", direction: "Manhattan", stopId: "A46N" },
     generatedAt: Math.floor(now / 1000),
     updated: timeFormatter.format(snapshot.fetchedAt),
     stale: snapshot.stale,

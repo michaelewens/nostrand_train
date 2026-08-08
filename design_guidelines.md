@@ -104,7 +104,7 @@ Incorporate 1980s subway tile patterns:
 ## Data Display Patterns
 
 **Time Format**:
-- Arriving: "ARRIVING NOW" (uppercase, bold)
+- Arriving: "Arriving" (mixed case, bold)
 - 1-59 min: "X MIN" (large monospace digits)
 - >60 min: "HH:MM" (24-hour LED display style)
 

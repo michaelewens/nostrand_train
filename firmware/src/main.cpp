@@ -28,9 +28,11 @@ constexpr int EPD_DC = 46;
 constexpr int EPD_CS = 45;
 constexpr int EPD_BUSY = 48;
 constexpr int EPD_POWER = 7;
+constexpr int ROTARY_DOWN = 4;
 }  // namespace Pins
 
 constexpr int MAX_TRAINS = 4;
+constexpr unsigned long BUTTON_DEBOUNCE_MS = 40;
 
 namespace Layout {
 constexpr int TRAIN_WIDTH = 528;
@@ -59,7 +61,7 @@ struct Weather {
 };
 
 struct Dashboard {
-  char station[24] = "Nostrand Av";
+  char station[24] = "Nostrand Ave";
   char direction[24] = "Manhattan";
   char updated[16] = "";
   bool stale = false;
@@ -74,6 +76,25 @@ GxEPD2_BW<GxEPD2_579_GDEY0579T93, GxEPD2_579_GDEY0579T93::HEIGHT> display(
 Dashboard dashboard;
 unsigned int refreshCount = 0;
 unsigned long lastAttemptAt = 0;
+int rawDownState = HIGH;
+int stableDownState = HIGH;
+unsigned long downStateChangedAt = 0;
+
+bool manualRefreshPressed() {
+  const int currentState = digitalRead(Pins::ROTARY_DOWN);
+  if (currentState != rawDownState) {
+    rawDownState = currentState;
+    downStateChangedAt = millis();
+  }
+
+  if (currentState != stableDownState &&
+      millis() - downStateChangedAt >= BUTTON_DEBOUNCE_MS) {
+    stableDownState = currentState;
+    return stableDownState == LOW;
+  }
+
+  return false;
+}
 
 String clippedUpper(const char* value, size_t maxLength) {
   String text(value);
@@ -255,8 +276,8 @@ void drawCountdown(const Train& train, int centerY, int earliestMinutes, int lat
   display.setTextColor(GxEPD_BLACK);
 
   if (train.minutes == 0) {
-    display.setFont(&FreeSansBold24pt7b);
-    drawCenteredText("NOW", countdownCenterX, centerY + 16);
+    display.setFont(&FreeSansBold18pt7b);
+    drawCenteredText("Arriving", countdownCenterX, centerY + 12);
     return;
   }
 
@@ -408,7 +429,7 @@ bool parseDashboard(HTTPClient& http, Dashboard& output) {
   }
 
   Dashboard parsed;
-  strlcpy(parsed.station, document["station"]["name"] | "Nostrand Av", sizeof(parsed.station));
+  strlcpy(parsed.station, document["station"]["name"] | "Nostrand Ave", sizeof(parsed.station));
   strlcpy(parsed.direction, document["station"]["direction"] | "Manhattan", sizeof(parsed.direction));
   strlcpy(parsed.updated, document["updated"] | "--", sizeof(parsed.updated));
   parsed.stale = document["stale"] | false;
@@ -510,6 +531,10 @@ void setup() {
   delay(300);
   Serial.println("\nNostrand train display starting");
 
+  pinMode(Pins::ROTARY_DOWN, INPUT_PULLUP);
+  rawDownState = digitalRead(Pins::ROTARY_DOWN);
+  stableDownState = rawDownState;
+
   pinMode(Pins::EPD_POWER, OUTPUT);
   digitalWrite(Pins::EPD_POWER, HIGH);
   SPI.begin(Pins::EPD_SCK, -1, Pins::EPD_MOSI, Pins::EPD_CS);
@@ -532,10 +557,12 @@ void setup() {
 }
 
 void loop() {
-  if (millis() - lastAttemptAt < REFRESH_INTERVAL_MS) {
-    delay(100);
+  const bool manualRefresh = manualRefreshPressed();
+  if (!manualRefresh && millis() - lastAttemptAt < REFRESH_INTERVAL_MS) {
+    delay(25);
     return;
   }
+  if (manualRefresh) Serial.println("Manual refresh requested");
   lastAttemptAt = millis();
 
   if (!connectWifi(false)) return;

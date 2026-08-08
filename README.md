@@ -1,6 +1,6 @@
 # Nostrand train display
 
-Live Manhattan-bound A/C arrivals at Nostrand Av, now with a dedicated e-paper client for the Elecrow **CrowPanel ESP32 5.79-inch** display (DIS08792E, 792×272 black/white).
+Live Manhattan-bound A/C arrivals at Nostrand Ave, now with a dedicated e-paper client for the Elecrow **CrowPanel ESP32 5.79-inch** display (DIS08792E, 792×272 black/white).
 
 ## How it works
 
@@ -17,7 +17,7 @@ Example payload:
 ```json
 {
   "version": 1,
-  "station": { "name": "Nostrand Av", "direction": "Manhattan", "stopId": "A46N" },
+  "station": { "name": "Nostrand Ave", "direction": "Manhattan", "stopId": "A46N" },
   "updated": "8:42 AM",
   "trains": [
     { "route": "A", "destination": "Inwood-207 St", "arrivalTime": 1786207680, "minutes": 3 }
