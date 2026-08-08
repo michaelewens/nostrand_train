@@ -25,3 +25,32 @@ export const departureSchema = z.object({
 });
 
 export type Departure = z.infer<typeof departureSchema>;
+
+export const displayTrainSchema = departureSchema.extend({
+  minutes: z.number().int().nonnegative(),
+});
+
+export const weatherSchema = z.object({
+  temperatureF: z.number(),
+  apparentF: z.number(),
+  highF: z.number(),
+  lowF: z.number(),
+  precipitationChance: z.number(),
+  condition: z.string(),
+  weatherCode: z.number(),
+});
+
+export const displayPayloadSchema = z.object({
+  version: z.literal(1),
+  station: z.object({
+    name: z.string(),
+    direction: z.string(),
+    stopId: z.string(),
+  }),
+  generatedAt: z.number(),
+  updated: z.string(),
+  trains: z.array(displayTrainSchema),
+  weather: weatherSchema.nullable(),
+});
+
+export type DisplayPayload = z.infer<typeof displayPayloadSchema>;

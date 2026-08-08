@@ -1,0 +1,7 @@
+node_modules/
+.env
+.env.*
+!*.example
+firmware/.pio/
+firmware/.vscode/
+firmware/include/nostrand_config.h

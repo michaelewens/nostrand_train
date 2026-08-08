@@ -113,35 +113,128 @@ function serveStatic(app) {
   });
 }
 
-// server/index.ts
-var TRANSITER_API_BASE = "https://demo.transiter.dev";
+// server/transit.ts
+var TRANSITER_API_BASE = process.env.TRANSITER_API_BASE || "https://demo.transiter.dev";
 var SYSTEM_ID = "us-ny-subway";
 var NOSTRAND_STOP_ID = "A46N";
+function transformDepartures(data, nowSeconds = Math.floor(Date.now() / 1e3)) {
+  return (data.stopTimes || []).filter((stopTime) => {
+    const route = stopTime.trip?.route?.id;
+    return route === "A" || route === "C";
+  }).map((stopTime) => ({
+    route: stopTime.trip.route.id,
+    destination: stopTime.trip.destination?.name || "Manhattan",
+    arrivalTime: Number.parseInt(stopTime.arrival?.time || stopTime.departure?.time, 10)
+  })).filter(
+    (departure) => Number.isFinite(departure.arrivalTime) && departure.arrivalTime >= nowSeconds - 30
+  ).sort((a, b) => a.arrivalTime - b.arrivalTime).slice(0, 10);
+}
+async function fetchDepartures() {
+  const response = await fetch(
+    `${TRANSITER_API_BASE}/systems/${SYSTEM_ID}/stops/${NOSTRAND_STOP_ID}`,
+    { signal: AbortSignal.timeout(8e3) }
+  );
+  if (!response.ok) {
+    throw new Error(`Transiter API error: ${response.status} ${response.statusText}`);
+  }
+  return transformDepartures(await response.json());
+}
+
+// server/weather.ts
+var LATITUDE = process.env.WEATHER_LATITUDE || "40.6804";
+var LONGITUDE = process.env.WEATHER_LONGITUDE || "-73.9496";
+var CACHE_TTL_MS = 10 * 60 * 1e3;
+var cache;
+function weatherCondition(code) {
+  if (code === 0) return "Clear";
+  if (code <= 2) return "Partly cloudy";
+  if (code === 3) return "Cloudy";
+  if (code === 45 || code === 48) return "Fog";
+  if (code >= 51 && code <= 57) return "Drizzle";
+  if (code >= 61 && code <= 67) return "Rain";
+  if (code >= 71 && code <= 77) return "Snow";
+  if (code >= 80 && code <= 82) return "Rain showers";
+  if (code >= 85 && code <= 86) return "Snow showers";
+  if (code >= 95) return "Thunderstorms";
+  return "Unsettled";
+}
+function transformWeather(data) {
+  const current = data.current || {};
+  const daily = data.daily || {};
+  const weatherCode = Number(current.weather_code);
+  return {
+    temperatureF: Math.round(Number(current.temperature_2m)),
+    apparentF: Math.round(Number(current.apparent_temperature)),
+    highF: Math.round(Number(daily.temperature_2m_max?.[0])),
+    lowF: Math.round(Number(daily.temperature_2m_min?.[0])),
+    precipitationChance: Math.round(Number(daily.precipitation_probability_max?.[0] || 0)),
+    condition: weatherCondition(weatherCode),
+    weatherCode
+  };
+}
+async function fetchWeather() {
+  if (cache && cache.expiresAt > Date.now()) return cache.value;
+  const params = new URLSearchParams({
+    latitude: LATITUDE,
+    longitude: LONGITUDE,
+    current: "temperature_2m,apparent_temperature,weather_code",
+    daily: "temperature_2m_max,temperature_2m_min,precipitation_probability_max",
+    temperature_unit: "fahrenheit",
+    timezone: "America/New_York",
+    forecast_days: "1"
+  });
+  const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`, {
+    signal: AbortSignal.timeout(8e3)
+  });
+  if (!response.ok) {
+    throw new Error(`Open-Meteo API error: ${response.status} ${response.statusText}`);
+  }
+  const value = transformWeather(await response.json());
+  cache = { value, expiresAt: Date.now() + CACHE_TTL_MS };
+  return value;
+}
+
+// server/index.ts
 (async () => {
   const app = express2();
   app.use(express2.json());
   app.use(express2.urlencoded({ extended: false }));
+  app.get("/ping", (req, res) => {
+    res.status(200).json({ status: "ok", timestamp: (/* @__PURE__ */ new Date()).toISOString() });
+  });
   app.get("/api/departures", async (req, res) => {
     try {
-      const response = await fetch(
-        `${TRANSITER_API_BASE}/systems/${SYSTEM_ID}/stops/${NOSTRAND_STOP_ID}`
-      );
-      if (!response.ok) {
-        throw new Error(`Transiter API error: ${response.statusText}`);
-      }
-      const data = await response.json();
-      const departures = (data.stopTimes || []).filter((st) => {
-        const route = st.trip?.route?.id;
-        return route === "A" || route === "C";
-      }).map((st) => ({
-        route: st.trip.route.id,
-        destination: st.trip.destination?.name || "Manhattan",
-        arrivalTime: parseInt(st.arrival?.time || st.departure?.time)
-      })).slice(0, 10);
-      res.json(departures);
+      res.json(await fetchDepartures());
     } catch (error) {
       console.error("Error fetching train data:", error);
       res.status(500).json({ error: "Failed to fetch train departures" });
+    }
+  });
+  app.get("/api/display", async (_req, res) => {
+    try {
+      const departures = await fetchDepartures();
+      const weatherResult = await Promise.allSettled([fetchWeather()]);
+      const now = Date.now();
+      const localTime = new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/New_York",
+        hour: "numeric",
+        minute: "2-digit"
+      }).format(now);
+      res.set("Cache-Control", "public, max-age=20");
+      res.json({
+        version: 1,
+        station: { name: "Nostrand Av", direction: "Manhattan", stopId: "A46N" },
+        generatedAt: Math.floor(now / 1e3),
+        updated: localTime,
+        trains: departures.slice(0, 4).map((departure) => ({
+          ...departure,
+          minutes: Math.max(0, Math.floor((departure.arrivalTime * 1e3 - now) / 6e4))
+        })),
+        weather: weatherResult[0].status === "fulfilled" ? weatherResult[0].value : null
+      });
+    } catch (error) {
+      console.error("Error building display payload:", error);
+      res.status(503).json({ error: "Display data is temporarily unavailable" });
     }
   });
   const server = createServer(app);
@@ -157,11 +250,7 @@ var NOSTRAND_STOP_ID = "A46N";
     serveStatic(app);
   }
   const port = parseInt(process.env.PORT || "5000", 10);
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true
-  }, () => {
+  server.listen(port, "0.0.0.0", () => {
     log(`serving on port ${port}`);
   });
 })();

@@ -1,16 +1,8 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { createServer } from "http";
 import { setupVite, serveStatic, log } from "./vite";
-
-const TRANSITER_API_BASE = "https://demo.transiter.dev";
-const SYSTEM_ID = "us-ny-subway";
-const NOSTRAND_STOP_ID = "A46N";
-
-interface Departure {
-  route: string;
-  destination: string;
-  arrivalTime: number;
-}
+import { fetchDepartures } from "./transit";
+import { fetchWeather } from "./weather";
 
 (async () => {
   const app = express();
@@ -25,32 +17,39 @@ interface Departure {
 
   app.get("/api/departures", async (req, res) => {
     try {
-      const response = await fetch(
-        `${TRANSITER_API_BASE}/systems/${SYSTEM_ID}/stops/${NOSTRAND_STOP_ID}`
-      );
-
-      if (!response.ok) {
-        throw new Error(`Transiter API error: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-
-      const departures: Departure[] = (data.stopTimes || [])
-        .filter((st: any) => {
-          const route = st.trip?.route?.id;
-          return route === "A" || route === "C";
-        })
-        .map((st: any) => ({
-          route: st.trip.route.id,
-          destination: st.trip.destination?.name || "Manhattan",
-          arrivalTime: parseInt(st.arrival?.time || st.departure?.time),
-        }))
-        .slice(0, 10);
-
-      res.json(departures);
+      res.json(await fetchDepartures());
     } catch (error) {
       console.error("Error fetching train data:", error);
       res.status(500).json({ error: "Failed to fetch train departures" });
+    }
+  });
+
+  app.get("/api/display", async (_req, res) => {
+    try {
+      const departures = await fetchDepartures();
+      const weatherResult = await Promise.allSettled([fetchWeather()]);
+      const now = Date.now();
+      const localTime = new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/New_York",
+        hour: "numeric",
+        minute: "2-digit",
+      }).format(now);
+
+      res.set("Cache-Control", "public, max-age=20");
+      res.json({
+        version: 1,
+        station: { name: "Nostrand Av", direction: "Manhattan", stopId: "A46N" },
+        generatedAt: Math.floor(now / 1000),
+        updated: localTime,
+        trains: departures.slice(0, 4).map((departure) => ({
+          ...departure,
+          minutes: Math.max(0, Math.floor((departure.arrivalTime * 1000 - now) / 60_000)),
+        })),
+        weather: weatherResult[0].status === "fulfilled" ? weatherResult[0].value : null,
+      });
+    } catch (error) {
+      console.error("Error building display payload:", error);
+      res.status(503).json({ error: "Display data is temporarily unavailable" });
     }
   });
 
@@ -72,11 +71,7 @@ interface Departure {
   }
 
   const port = parseInt(process.env.PORT || '5000', 10);
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
+  server.listen(port, "0.0.0.0", () => {
     log(`serving on port ${port}`);
   });
 })();
