@@ -28,6 +28,14 @@ The screen refreshes once per minute. Push the rotary switch down for an immedia
 
 HTTPS responses are verified against the ISRG Root X1 certificate used by the Railway backend. If an `API_BASE_URL` override uses a different certificate authority, update `API_ROOT_CA` in the same private configuration file.
 
+Countdowns are left-aligned by default. To restore the saved relative-time layout, copy `include/nostrand_config.example.h` to `include/nostrand_config.h` and change:
+
+```cpp
+#define COUNTDOWN_POSITION_MODE COUNTDOWN_POSITION_RELATIVE
+```
+
+Use `COUNTDOWN_POSITION_LEFT_ALIGNED` to switch back. Both layout implementations remain in the firmware.
+
 ## Board mapping
 
 | Signal | ESP32-S3 GPIO |

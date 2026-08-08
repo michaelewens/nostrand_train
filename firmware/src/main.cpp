@@ -20,6 +20,16 @@
 #include "nostrand_config.example.h"
 #endif
 
+#ifndef COUNTDOWN_POSITION_LEFT_ALIGNED
+#define COUNTDOWN_POSITION_LEFT_ALIGNED 0
+#endif
+#ifndef COUNTDOWN_POSITION_RELATIVE
+#define COUNTDOWN_POSITION_RELATIVE 1
+#endif
+#ifndef COUNTDOWN_POSITION_MODE
+#define COUNTDOWN_POSITION_MODE COUNTDOWN_POSITION_LEFT_ALIGNED
+#endif
+
 namespace Pins {
 constexpr int EPD_SCK = 12;
 constexpr int EPD_MOSI = 11;
@@ -43,6 +53,7 @@ constexpr int WEATHER_Y = 8;
 constexpr int WEATHER_WIDTH = 244;
 constexpr int WEATHER_HEIGHT = 256;
 constexpr int WEATHER_CENTER_X = WEATHER_X + WEATHER_WIDTH / 2;
+constexpr int COUNTDOWN_LEFT_X = 96;
 }  // namespace Layout
 
 struct Train {
@@ -131,11 +142,23 @@ void drawSun(int centerX, int centerY, int radius) {
   }
 }
 
+void fillCloudLayer(int centerX, int centerY, int inset, uint16_t color) {
+  display.fillCircle(centerX - 25, centerY + 1, 17 - inset, color);
+  display.fillCircle(centerX, centerY - 10, 24 - inset, color);
+  display.fillCircle(centerX + 28, centerY + 2, 18 - inset, color);
+  display.fillRoundRect(
+      centerX - 43 + inset,
+      centerY + inset,
+      89 - inset * 2,
+      25 - inset * 2,
+      10 - inset,
+      color);
+}
+
 void drawCloud(int centerX, int centerY) {
-  display.fillCircle(centerX - 25, centerY + 1, 17, GxEPD_BLACK);
-  display.fillCircle(centerX, centerY - 10, 24, GxEPD_BLACK);
-  display.fillCircle(centerX + 28, centerY + 2, 18, GxEPD_BLACK);
-  display.fillRoundRect(centerX - 43, centerY, 89, 25, 10, GxEPD_BLACK);
+  constexpr int outlineThickness = 3;
+  fillCloudLayer(centerX, centerY, 0, GxEPD_BLACK);
+  fillCloudLayer(centerX, centerY, outlineThickness, GxEPD_WHITE);
 }
 
 void drawStar(int centerX, int centerY, int outerRadius, int innerRadius) {
@@ -267,7 +290,7 @@ void drawCountdown(const Train& train, int centerY, int earliestMinutes, int lat
   constexpr int earliestCenterX = 148;
   constexpr int latestCenterX = 464;
   const int minuteRange = latestMinutes - earliestMinutes;
-  const int countdownCenterX = minuteRange > 0
+  const int relativeCenterX = minuteRange > 0
       ? earliestCenterX + (train.minutes - earliestMinutes) *
             (latestCenterX - earliestCenterX) / minuteRange
       : earliestCenterX;
@@ -275,7 +298,12 @@ void drawCountdown(const Train& train, int centerY, int earliestMinutes, int lat
 
   if (train.minutes == 0) {
     display.setFont(&FreeSansBold18pt7b);
-    drawCenteredText("Arriving", countdownCenterX, centerY + 12);
+    if (COUNTDOWN_POSITION_MODE == COUNTDOWN_POSITION_RELATIVE) {
+      drawCenteredText("Arriving", relativeCenterX, centerY + 12);
+    } else {
+      display.setCursor(Layout::COUNTDOWN_LEFT_X, centerY + 12);
+      display.print("Arriving");
+    }
     return;
   }
 
@@ -289,7 +317,9 @@ void drawCountdown(const Train& train, int centerY, int earliestMinutes, int lat
 
   constexpr int gap = 12;
   const int totalWidth = minutesWidth + gap + labelWidth;
-  const int startX = countdownCenterX - totalWidth / 2;
+  const int startX = COUNTDOWN_POSITION_MODE == COUNTDOWN_POSITION_RELATIVE
+      ? relativeCenterX - totalWidth / 2
+      : Layout::COUNTDOWN_LEFT_X;
   display.setFont(&FreeSansBold24pt7b);
   display.setCursor(startX, centerY + 16);
   display.print(minutes);

@@ -45,5 +45,13 @@ emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
 constexpr unsigned long REFRESH_INTERVAL_MS = 60UL * 1000UL;
 constexpr unsigned int FULL_REFRESH_EVERY = 15;
 
+// Countdown positioning. LEFT_ALIGNED starts every countdown at the same x
+// coordinate. RELATIVE spreads them horizontally by time after the next train.
+#define COUNTDOWN_POSITION_LEFT_ALIGNED 0
+#define COUNTDOWN_POSITION_RELATIVE 1
+#ifndef COUNTDOWN_POSITION_MODE
+#define COUNTDOWN_POSITION_MODE COUNTDOWN_POSITION_LEFT_ALIGNED
+#endif
+
 // Use 2 if the panel is mounted upside down.
 constexpr unsigned int DISPLAY_ROTATION = 0;
