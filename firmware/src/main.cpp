@@ -236,7 +236,7 @@ void drawWeatherPanel(const Dashboard& data) {
   drawWeatherIcon(data.weather.weatherCode, Layout::WEATHER_CENTER_X, y + 144);
 
   display.drawFastHLine(x + 12, y + 200, width - 24, GxEPD_BLACK);
-  display.setFont(&FreeSansBold12pt7b);
+  display.setFont(&FreeSans12pt7b);
   drawCenteredText(
       String("H ") + data.weather.highF + "  L " + data.weather.lowF,
       x + 68, y + 224);
