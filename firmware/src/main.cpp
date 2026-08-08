@@ -206,7 +206,7 @@ void drawTrainHeader(const Dashboard& data) {
   display.print(clippedUpper(data.station, 16));
 
   display.setFont(&FreeSansBold9pt7b);
-  display.setCursor(300, 33);
+  display.setCursor(320, 33);
   display.print("TO ");
   display.print(clippedUpper(data.direction, 14));
 }
@@ -221,10 +221,6 @@ void drawWeatherPanel(const Dashboard& data) {
   }
 
   display.setTextColor(GxEPD_BLACK);
-  display.setFont(&FreeSansBold9pt7b);
-  display.setCursor(x + 14, y + 24);
-  display.print("BROOKLYN NOW");
-
   if (!data.weather.available) {
     display.setFont(&FreeSansBold12pt7b);
     drawCenteredText("WEATHER --", Layout::WEATHER_CENTER_X, y + 126);
