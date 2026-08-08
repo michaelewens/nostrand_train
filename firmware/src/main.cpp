@@ -90,14 +90,6 @@ void drawCenteredText(const String& text, int16_t centerX, int16_t baselineY) {
   display.print(text);
 }
 
-void drawRightAlignedText(const String& text, int16_t rightX, int16_t baselineY) {
-  int16_t x1, y1;
-  uint16_t width, height;
-  display.getTextBounds(text, 0, baselineY, &x1, &y1, &width, &height);
-  display.setCursor(rightX - static_cast<int16_t>(width), baselineY);
-  display.print(text);
-}
-
 void drawThickLine(int x1, int y1, int x2, int y2, int thickness = 2) {
   for (int offset = 0; offset < thickness; ++offset) {
     const int delta = offset - thickness / 2;
@@ -123,6 +115,23 @@ void drawCloud(int centerX, int centerY) {
   display.fillCircle(centerX, centerY - 10, 24, GxEPD_BLACK);
   display.fillCircle(centerX + 28, centerY + 2, 18, GxEPD_BLACK);
   display.fillRoundRect(centerX - 43, centerY, 89, 25, 10, GxEPD_BLACK);
+}
+
+void drawStar(int centerX, int centerY, int outerRadius, int innerRadius) {
+  for (int point = 0; point < 5; ++point) {
+    const float outerAngle = -PI / 2.0f + point * 2.0f * PI / 5.0f;
+    const float previousInnerAngle = outerAngle - PI / 5.0f;
+    const float nextInnerAngle = outerAngle + PI / 5.0f;
+    display.fillTriangle(
+        centerX + cos(outerAngle) * outerRadius,
+        centerY + sin(outerAngle) * outerRadius,
+        centerX + cos(previousInnerAngle) * innerRadius,
+        centerY + sin(previousInnerAngle) * innerRadius,
+        centerX + cos(nextInnerAngle) * innerRadius,
+        centerY + sin(nextInnerAngle) * innerRadius,
+        GxEPD_BLACK);
+  }
+  display.fillCircle(centerX, centerY, innerRadius + 1, GxEPD_BLACK);
 }
 
 void drawWeatherIcon(int weatherCode, int centerX, int centerY) {
@@ -222,36 +231,62 @@ void drawWeatherPanel(const Dashboard& data) {
   display.print(clippedUpper(data.updated, 12));
 }
 
-void drawTrainRow(const Train& train, int index) {
+void drawRouteSymbol(const Train& train, int centerY) {
+  constexpr int centerX = 44;
+  if (strcmp(train.route, "A") == 0) {
+    drawStar(centerX, centerY, 24, 11);
+  } else {
+    display.fillCircle(centerX, centerY, 21, GxEPD_BLACK);
+  }
+
+  display.setTextColor(GxEPD_WHITE);
+  display.setFont(&FreeSansBold12pt7b);
+  drawCenteredText(train.route, centerX, centerY + 8);
+}
+
+void drawCountdown(const Train& train, int centerY, int earliestMinutes, int latestMinutes) {
+  constexpr int earliestCenterX = 148;
+  constexpr int latestCenterX = 464;
+  const int minuteRange = latestMinutes - earliestMinutes;
+  const int countdownCenterX = minuteRange > 0
+      ? earliestCenterX + (train.minutes - earliestMinutes) *
+            (latestCenterX - earliestCenterX) / minuteRange
+      : earliestCenterX;
+  display.setTextColor(GxEPD_BLACK);
+
+  if (train.minutes == 0) {
+    display.setFont(&FreeSansBold24pt7b);
+    drawCenteredText("NOW", countdownCenterX, centerY + 16);
+    return;
+  }
+
+  const String minutes = train.minutes > 99 ? "99+" : String(train.minutes);
+  int16_t x1, y1;
+  uint16_t minutesWidth, minutesHeight, labelWidth, labelHeight;
+  display.setFont(&FreeSansBold24pt7b);
+  display.getTextBounds(minutes, 0, centerY + 16, &x1, &y1, &minutesWidth, &minutesHeight);
+  display.setFont(&FreeSansBold12pt7b);
+  display.getTextBounds("MIN", 0, centerY + 9, &x1, &y1, &labelWidth, &labelHeight);
+
+  constexpr int gap = 12;
+  const int totalWidth = minutesWidth + gap + labelWidth;
+  const int startX = countdownCenterX - totalWidth / 2;
+  display.setFont(&FreeSansBold24pt7b);
+  display.setCursor(startX, centerY + 16);
+  display.print(minutes);
+  display.setFont(&FreeSansBold12pt7b);
+  display.setCursor(startX + minutesWidth + gap, centerY + 9);
+  display.print("MIN");
+}
+
+void drawTrainRow(const Train& train, int index, int earliestMinutes, int latestMinutes) {
   const int top = Layout::HEADER_HEIGHT + index * Layout::TRAIN_ROW_HEIGHT;
   const int centerY = top + Layout::TRAIN_ROW_HEIGHT / 2;
 
   display.setTextColor(GxEPD_BLACK);
   display.drawFastHLine(0, top, Layout::TRAIN_WIDTH, GxEPD_BLACK);
-  display.fillCircle(36, centerY, 19, GxEPD_BLACK);
-
-  display.setTextColor(GxEPD_WHITE);
-  display.setFont(&FreeSansBold12pt7b);
-  drawCenteredText(train.route, 36, centerY + 8);
-
-  display.setTextColor(GxEPD_BLACK);
-  display.setFont(&FreeSansBold18pt7b);
-  display.setCursor(74, centerY + 11);
-  display.print(train.route);
-  display.print(" TRAIN");
-
-  display.drawFastVLine(300, top + 8, Layout::TRAIN_ROW_HEIGHT - 16, GxEPD_BLACK);
-  if (train.minutes == 0) {
-    display.setFont(&FreeSansBold18pt7b);
-    drawRightAlignedText("NOW", 510, centerY + 11);
-  } else {
-    display.setFont(&FreeSansBold24pt7b);
-    const String minutes = train.minutes > 99 ? "99+" : String(train.minutes);
-    drawRightAlignedText(minutes, 424, centerY + 16);
-    display.setFont(&FreeSansBold12pt7b);
-    display.setCursor(440, centerY + 9);
-    display.print("MIN");
-  }
+  drawRouteSymbol(train, centerY);
+  drawCountdown(train, centerY, earliestMinutes, latestMinutes);
 }
 
 void drawDashboard(const Dashboard& data) {
@@ -265,8 +300,16 @@ void drawDashboard(const Dashboard& data) {
     display.setFont(&FreeSansBold18pt7b);
     drawCenteredText("NO TRAINS REPORTED", Layout::TRAIN_WIDTH / 2, 152);
   } else {
+    int earliestMinutes = data.trains[0].minutes;
+    int latestMinutes = data.trains[0].minutes;
+    for (size_t index = 1; index < data.trainCount; ++index) {
+      earliestMinutes = min(earliestMinutes, data.trains[index].minutes);
+      latestMinutes = max(latestMinutes, data.trains[index].minutes);
+    }
+
     for (size_t index = 0; index < data.trainCount; ++index) {
-      drawTrainRow(data.trains[index], static_cast<int>(index));
+      drawTrainRow(
+          data.trains[index], static_cast<int>(index), earliestMinutes, latestMinutes);
     }
   }
   display.drawFastHLine(0, display.height() - 1, Layout::TRAIN_WIDTH, GxEPD_BLACK);
