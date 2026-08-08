@@ -1,17 +1,16 @@
 import { RefreshCw, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { useState, useEffect } from 'react';
 
 interface StationHeaderProps {
   stationName: string;
   direction: string;
-  routes: string[];
+  routes: Array<'A' | 'C'>;
   lastUpdated: Date;
   onRefresh: () => void;
   isRefreshing?: boolean;
-  selectedLine: string;
-  onLineSelect: (line: string) => void;
+  selectedLine: 'A' | 'C';
+  onLineSelect: (line: 'A' | 'C') => void;
 }
 
 export default function StationHeader({ 
@@ -59,6 +58,7 @@ export default function StationHeader({
           </div>
           
           <Button
+            aria-label="Refresh train departures"
             size="icon"
             variant="ghost"
             onClick={onRefresh}
@@ -72,30 +72,25 @@ export default function StationHeader({
         <div className="flex items-center justify-between gap-4">
           <div className="flex gap-2">
             {routes.map((route) => (
-              <Badge 
+              <button
+                type="button"
                 key={route}
-                variant={selectedLine === route ? "default" : "secondary"}
-                className="text-base font-bold px-3 py-1 cursor-pointer hover-elevate active-elevate-2"
-                style={selectedLine === route ? { backgroundColor: '#0039A6', color: '#FFFFFF' } : undefined}
+                className={`rounded-md px-3 py-1 text-base font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                  selectedLine === route
+                    ? 'bg-[#0039A6] text-white'
+                    : 'bg-secondary text-secondary-foreground hover-elevate active-elevate-2'
+                }`}
                 onClick={() => onLineSelect(route)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    onLineSelect(route);
-                  }
-                }}
-                role="button"
-                tabIndex={0}
                 aria-pressed={selectedLine === route}
                 aria-label={`Show ${route} train departures`}
                 data-testid={`badge-route-filter-${route}`}
               >
                 {route}
-              </Badge>
+              </button>
             ))}
           </div>
           
-          <p className="text-xs text-muted-foreground whitespace-nowrap" data-testid="text-updated">
+          <p className="text-xs text-muted-foreground whitespace-nowrap" aria-live="polite" data-testid="text-updated">
             Updated {timeSinceUpdate}
           </p>
         </div>

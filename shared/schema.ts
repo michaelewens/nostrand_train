@@ -1,27 +1,9 @@
-import { sql } from "drizzle-orm";
-import { pgTable, text, varchar } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
-});
-
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
-});
-
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
-
-// NYC Subway Departure Types
 export const departureSchema = z.object({
-  route: z.string(),
-  destination: z.string(),
-  arrivalTime: z.number(), // Unix timestamp
+  route: z.enum(["A", "C"]),
+  destination: z.string().min(1).max(80),
+  arrivalTime: z.number().int().positive(),
 });
 
 export type Departure = z.infer<typeof departureSchema>;
@@ -31,14 +13,16 @@ export const displayTrainSchema = departureSchema.extend({
 });
 
 export const weatherSchema = z.object({
-  temperatureF: z.number(),
-  apparentF: z.number(),
-  highF: z.number(),
-  lowF: z.number(),
-  precipitationChance: z.number(),
-  condition: z.string(),
-  weatherCode: z.number(),
+  temperatureF: z.number().int().finite(),
+  apparentF: z.number().int().finite(),
+  highF: z.number().int().finite(),
+  lowF: z.number().int().finite(),
+  precipitationChance: z.number().int().min(0).max(100),
+  condition: z.string().min(1).max(40),
+  weatherCode: z.number().int().min(0).max(99),
 });
+
+export type Weather = z.infer<typeof weatherSchema>;
 
 export const displayPayloadSchema = z.object({
   version: z.literal(1),
@@ -47,9 +31,10 @@ export const displayPayloadSchema = z.object({
     direction: z.string(),
     stopId: z.string(),
   }),
-  generatedAt: z.number(),
-  updated: z.string(),
-  trains: z.array(displayTrainSchema),
+  generatedAt: z.number().int().positive(),
+  updated: z.string().min(1).max(20),
+  stale: z.boolean(),
+  trains: z.array(displayTrainSchema).max(4),
   weather: weatherSchema.nullable(),
 });
 

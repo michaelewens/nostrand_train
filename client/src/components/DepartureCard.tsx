@@ -15,7 +15,7 @@ export default function DepartureCard({ route, destination, minutesAway }: Depar
   };
 
   return (
-    <div 
+    <li
       className="flex items-center gap-4 p-4 border-b border-border last:border-b-0"
       data-testid={`card-departure-${route}`}
     >
@@ -35,6 +35,6 @@ export default function DepartureCard({ route, destination, minutesAway }: Depar
           {getTimeDisplay()}
         </p>
       </div>
-    </div>
+    </li>
   );
 }

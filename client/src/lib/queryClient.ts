@@ -9,7 +9,7 @@ if (import.meta.env.PROD && !API_BASE_URL && window.location.hostname !== 'local
   );
 }
 
-function getApiUrl(path: string): string {
+export function getApiUrl(path: string): string {
   if (API_BASE_URL) {
     return `${API_BASE_URL}${path}`;
   }

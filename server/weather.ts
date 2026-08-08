@@ -1,23 +1,33 @@
+import { z } from "zod";
+import { weatherSchema, type Weather } from "@shared/schema";
+
 const LATITUDE = process.env.WEATHER_LATITUDE || "40.6804";
 const LONGITUDE = process.env.WEATHER_LONGITUDE || "-73.9496";
-const CACHE_TTL_MS = 10 * 60 * 1000;
+const CACHE_TTL_MS = 10 * 60_000;
+const MAX_STALE_MS = 2 * 60 * 60_000;
+const RETRY_DELAY_MS = 30_000;
 
-export interface Weather {
-  temperatureF: number;
-  apparentF: number;
-  highF: number;
-  lowF: number;
-  precipitationChance: number;
-  condition: string;
-  weatherCode: number;
-}
+const openMeteoSchema = z.object({
+  current: z.object({
+    temperature_2m: z.number().finite(),
+    apparent_temperature: z.number().finite(),
+    weather_code: z.number().int().min(0).max(99),
+  }),
+  daily: z.object({
+    temperature_2m_max: z.array(z.number().finite()).min(1),
+    temperature_2m_min: z.array(z.number().finite()).min(1),
+    precipitation_probability_max: z.array(z.number().finite()).optional(),
+  }),
+});
 
 interface WeatherCache {
   value: Weather;
-  expiresAt: number;
+  fetchedAt: number;
+  refreshAfter: number;
 }
 
 let cache: WeatherCache | undefined;
+let inFlight: Promise<Weather> | undefined;
 
 export function weatherCondition(code: number): string {
   if (code === 0) return "Clear";
@@ -33,25 +43,23 @@ export function weatherCondition(code: number): string {
   return "Unsettled";
 }
 
-export function transformWeather(data: any): Weather {
-  const current = data.current || {};
-  const daily = data.daily || {};
-  const weatherCode = Number(current.weather_code);
+export function transformWeather(data: unknown): Weather {
+  const parsed = openMeteoSchema.safeParse(data);
+  if (!parsed.success) throw new Error("Invalid Open-Meteo forecast payload");
 
-  return {
-    temperatureF: Math.round(Number(current.temperature_2m)),
-    apparentF: Math.round(Number(current.apparent_temperature)),
-    highF: Math.round(Number(daily.temperature_2m_max?.[0])),
-    lowF: Math.round(Number(daily.temperature_2m_min?.[0])),
-    precipitationChance: Math.round(Number(daily.precipitation_probability_max?.[0] || 0)),
-    condition: weatherCondition(weatherCode),
-    weatherCode,
-  };
+  const { current, daily } = parsed.data;
+  return weatherSchema.parse({
+    temperatureF: Math.round(current.temperature_2m),
+    apparentF: Math.round(current.apparent_temperature),
+    highF: Math.round(daily.temperature_2m_max[0]),
+    lowF: Math.round(daily.temperature_2m_min[0]),
+    precipitationChance: Math.round(daily.precipitation_probability_max?.[0] ?? 0),
+    condition: weatherCondition(current.weather_code),
+    weatherCode: current.weather_code,
+  });
 }
 
-export async function fetchWeather(): Promise<Weather> {
-  if (cache && cache.expiresAt > Date.now()) return cache.value;
-
+async function fetchFromOpenMeteo(): Promise<Weather> {
   const params = new URLSearchParams({
     latitude: LATITUDE,
     longitude: LONGITUDE,
@@ -69,9 +77,37 @@ export async function fetchWeather(): Promise<Weather> {
   if (!response.ok) {
     throw new Error(`Open-Meteo API error: ${response.status} ${response.statusText}`);
   }
-
-  const value = transformWeather(await response.json());
-  cache = { value, expiresAt: Date.now() + CACHE_TTL_MS };
-  return value;
+  return transformWeather(await response.json());
 }
 
+export async function fetchWeather(): Promise<Weather> {
+  const now = Date.now();
+  if (cache && cache.refreshAfter > now) return cache.value;
+  if (inFlight) return inFlight;
+
+  inFlight = (async () => {
+    try {
+      const value = await fetchFromOpenMeteo();
+      const fetchedAt = Date.now();
+      cache = { value, fetchedAt, refreshAfter: fetchedAt + CACHE_TTL_MS };
+      return value;
+    } catch (error) {
+      const failedAt = Date.now();
+      if (cache && failedAt - cache.fetchedAt <= MAX_STALE_MS) {
+        cache.refreshAfter = failedAt + RETRY_DELAY_MS;
+        console.warn("Open-Meteo unavailable; serving recent cached weather", error);
+        return cache.value;
+      }
+      throw error;
+    } finally {
+      inFlight = undefined;
+    }
+  })();
+
+  return inFlight;
+}
+
+export function resetWeatherCacheForTests(): void {
+  cache = undefined;
+  inFlight = undefined;
+}

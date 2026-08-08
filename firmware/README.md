@@ -24,7 +24,9 @@ pio device monitor
 
 If automatic upload does not start, hold **BOOT**, tap **RST**, release **BOOT**, and retry the upload. The serial monitor runs at 115200 baud.
 
-The screen refreshes once per minute. Most updates use the panel's fast partial mode; every 15th update is a full refresh to control ghosting. On a network/API error it leaves the last useful screen in place and retries later.
+The screen refreshes once per minute. Most updates use the panel's fast partial mode; every 15th update is a full refresh to control ghosting. On a network/API error it leaves the last useful screen in place and retries later. Routine reconnects never launch the setup portal or overwrite the dashboard.
+
+HTTPS responses are verified against the ISRG Root X1 certificate used by the Railway backend. If an `API_BASE_URL` override uses a different certificate authority, update `API_ROOT_CA` in the same private configuration file.
 
 ## Board mapping
 

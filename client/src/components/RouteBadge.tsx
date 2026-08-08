@@ -11,6 +11,7 @@ export default function RouteBadge({ route }: RouteBadgeProps) {
         color: '#FFFFFF'
       }}
       data-testid={`badge-route-${route}`}
+      aria-label={`Route ${route}`}
     >
       {route}
     </div>

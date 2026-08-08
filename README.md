@@ -22,6 +22,7 @@ Example payload:
   "trains": [
     { "route": "A", "destination": "Inwood-207 St", "arrivalTime": 1786207680, "minutes": 3 }
   ],
+  "stale": false,
   "weather": {
     "temperatureF": 72,
     "apparentF": 73,
@@ -34,7 +35,7 @@ Example payload:
 }
 ```
 
-Weather is allowed to fail independently; train data remains available and the display shows `WEATHER --`.
+Weather is allowed to fail independently; train data remains available and the display shows `WEATHER --`. The server validates both upstream feeds, coalesces concurrent requests, caches train data briefly, and can serve the last recent result through a short Transiter outage. A stale response is labeled on the e-paper screen.
 
 ## Run the server
 
@@ -48,6 +49,8 @@ The server listens on port 5000 by default. Test the display endpoint at [http:/
 ## Program the CrowPanel
 
 The complete PlatformIO project, captive-portal Wi-Fi setup, exact board pins, and flashing instructions are in [`firmware/README.md`](firmware/README.md). It uses the live backend at `https://nostrand.up.railway.app` by default.
+
+The ESP32 must remain powered to fetch updates. It can use a USB wall adapter instead of a computer; an unpowered e-paper panel simply retains its last image.
 
 ## Checks
 

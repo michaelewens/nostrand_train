@@ -45,7 +45,6 @@ constexpr int WEATHER_CENTER_X = WEATHER_X + WEATHER_WIDTH / 2;
 
 struct Train {
   char route[2] = "";
-  char destination[40] = "";
   int minutes = 0;
 };
 
@@ -63,6 +62,7 @@ struct Dashboard {
   char station[24] = "Nostrand Av";
   char direction[24] = "Manhattan";
   char updated[16] = "";
+  bool stale = false;
   Train trains[MAX_TRAINS];
   size_t trainCount = 0;
   Weather weather;
@@ -227,7 +227,7 @@ void drawWeatherPanel(const Dashboard& data) {
 
   display.setFont(&FreeSans9pt7b);
   display.setCursor(x + 14, y + 249);
-  display.print("UPDATED ");
+  display.print(data.stale ? "STALE " : "UPDATED ");
   display.print(clippedUpper(data.updated, 12));
 }
 
@@ -358,10 +358,27 @@ void onConfigPortalStarted(WiFiManager*) {
   updateDisplay([] { drawWifiSetup(); }, true);
 }
 
-bool connectWifi() {
+bool connectWifi(bool allowConfigPortal) {
   if (WiFi.status() == WL_CONNECTED) return true;
 
   WiFi.mode(WIFI_STA);
+  if (!allowConfigPortal) {
+    Serial.println("Wi-Fi disconnected; attempting saved network reconnect");
+    WiFi.reconnect();
+    const unsigned long startedAt = millis();
+    while (WiFi.status() != WL_CONNECTED && millis() - startedAt < 20000UL) {
+      delay(250);
+    }
+    if (WiFi.status() != WL_CONNECTED) {
+      Serial.println("Wi-Fi reconnect failed; keeping the current screen");
+      return false;
+    }
+    WiFi.setSleep(false);
+    Serial.print("Wi-Fi reconnected; IP: ");
+    Serial.println(WiFi.localIP());
+    return true;
+  }
+
   WiFiManager manager;
   manager.setConnectTimeout(20);
   manager.setConfigPortalTimeout(300);
@@ -394,25 +411,54 @@ bool parseDashboard(HTTPClient& http, Dashboard& output) {
   strlcpy(parsed.station, document["station"]["name"] | "Nostrand Av", sizeof(parsed.station));
   strlcpy(parsed.direction, document["station"]["direction"] | "Manhattan", sizeof(parsed.direction));
   strlcpy(parsed.updated, document["updated"] | "--", sizeof(parsed.updated));
+  parsed.stale = document["stale"] | false;
 
+  if (!document["trains"].is<JsonArray>()) {
+    Serial.println("Display payload is missing its trains array");
+    return false;
+  }
   const JsonArray trains = document["trains"].as<JsonArray>();
   for (JsonObject train : trains) {
     if (parsed.trainCount == MAX_TRAINS) break;
+    const char* route = train["route"] | "";
+    if ((strcmp(route, "A") != 0 && strcmp(route, "C") != 0) ||
+        !train["minutes"].is<int>()) {
+      Serial.println("Skipping malformed train entry");
+      continue;
+    }
+    const int minutes = train["minutes"].as<int>();
+    if (minutes < 0) {
+      Serial.println("Skipping train with a negative countdown");
+      continue;
+    }
     Train& target = parsed.trains[parsed.trainCount++];
-    strlcpy(target.route, train["route"] | "?", sizeof(target.route));
-    strlcpy(target.destination, train["destination"] | "Manhattan", sizeof(target.destination));
-    target.minutes = max(0, train["minutes"].as<int>());
+    strlcpy(target.route, route, sizeof(target.route));
+    target.minutes = minutes;
   }
 
   const JsonVariant weather = document["weather"];
-  if (!weather.isNull()) {
-    parsed.weather.available = true;
-    parsed.weather.temperatureF = weather["temperatureF"] | 0;
-    parsed.weather.highF = weather["highF"] | 0;
-    parsed.weather.lowF = weather["lowF"] | 0;
-    parsed.weather.precipitationChance = weather["precipitationChance"] | 0;
-    parsed.weather.weatherCode = weather["weatherCode"] | 0;
-    strlcpy(parsed.weather.condition, weather["condition"] | "Unknown", sizeof(parsed.weather.condition));
+  if (!weather.isNull() &&
+      weather["temperatureF"].is<int>() &&
+      weather["highF"].is<int>() &&
+      weather["lowF"].is<int>() &&
+      weather["precipitationChance"].is<int>() &&
+      weather["weatherCode"].is<int>() &&
+      weather["condition"].is<const char*>()) {
+    const int precipitationChance = weather["precipitationChance"].as<int>();
+    if (precipitationChance < 0 || precipitationChance > 100) {
+      Serial.println("Ignoring weather with an invalid precipitation chance");
+    } else {
+      parsed.weather.available = true;
+      parsed.weather.temperatureF = weather["temperatureF"] | 0;
+      parsed.weather.highF = weather["highF"] | 0;
+      parsed.weather.lowF = weather["lowF"] | 0;
+      parsed.weather.precipitationChance = precipitationChance;
+      parsed.weather.weatherCode = weather["weatherCode"] | 0;
+      strlcpy(parsed.weather.condition, weather["condition"] | "Unknown",
+              sizeof(parsed.weather.condition));
+    }
+  } else if (!weather.isNull()) {
+    Serial.println("Ignoring malformed weather data");
   }
 
   output = parsed;
@@ -451,9 +497,7 @@ bool fetchDashboard(Dashboard& output) {
 
   if (url.startsWith("https://")) {
     WiFiClientSecure client;
-    // The payload is public transit/weather data. A pinned CA can replace this
-    // for deployments that need strict server identity verification.
-    client.setInsecure();
+    client.setCACert(API_ROOT_CA);
     return fetchWithClient(client, url, output);
   }
 
@@ -472,7 +516,7 @@ void setup() {
   display.init(115200, true, 2, false);
   display.setRotation(DISPLAY_ROTATION);
 
-  if (!connectWifi()) {
+  if (!connectWifi(true)) {
     updateDisplay([] { drawBootError("WI-FI NOT CONNECTED", "Press RST to try setup again"); }, true);
     lastAttemptAt = millis();
     return;
@@ -494,7 +538,7 @@ void loop() {
   }
   lastAttemptAt = millis();
 
-  if (!connectWifi()) return;
+  if (!connectWifi(false)) return;
 
   Dashboard next;
   if (!fetchDashboard(next)) {
