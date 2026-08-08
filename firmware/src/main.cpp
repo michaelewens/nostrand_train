@@ -228,22 +228,24 @@ void drawWeatherPanel(const Dashboard& data) {
   }
 
   display.setFont(&FreeSansBold24pt7b);
-  display.setCursor(x + 14, y + 72);
+  display.setCursor(x + 14, y + 56);
   display.printf("%dF", data.weather.temperatureF);
 
   display.setFont(&FreeSansBold9pt7b);
-  drawCenteredText(clippedUpper(data.weather.condition, 20), Layout::WEATHER_CENTER_X, y + 101);
-  drawWeatherIcon(data.weather.weatherCode, Layout::WEATHER_CENTER_X, y + 151);
+  drawCenteredText(clippedUpper(data.weather.condition, 20), Layout::WEATHER_CENTER_X, y + 88);
+  drawWeatherIcon(data.weather.weatherCode, Layout::WEATHER_CENTER_X, y + 144);
 
-  display.drawFastHLine(x + 12, y + 205, width - 24, GxEPD_BLACK);
-  display.setFont(&FreeSansBold9pt7b);
-  display.setCursor(x + 14, y + 229);
-  display.printf("H %d   L %d", data.weather.highF, data.weather.lowF);
-  display.setCursor(x + 142, y + 229);
-  display.printf("RAIN %d%%", data.weather.precipitationChance);
+  display.drawFastHLine(x + 12, y + 200, width - 24, GxEPD_BLACK);
+  display.setFont(&FreeSansBold12pt7b);
+  drawCenteredText(
+      String("H ") + data.weather.highF + "  L " + data.weather.lowF,
+      x + 68, y + 224);
+  drawCenteredText(
+      String("RAIN ") + data.weather.precipitationChance + "%",
+      x + 180, y + 224);
 
   display.setFont(&FreeSans9pt7b);
-  display.setCursor(x + 14, y + 249);
+  display.setCursor(x + 14, y + 248);
   display.print(data.stale ? "STALE " : "UPDATED ");
   display.print(clippedUpper(data.updated, 12));
 }
