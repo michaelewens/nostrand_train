@@ -2,14 +2,15 @@
 
 This PlatformIO project targets Elecrow model **DIS08792E**: the ESP32-S3 CrowPanel with a 792×272 black-and-white e-paper panel. It uses the panel's GDEY0579T93/dual-SSD1683 driver through GxEPD2 and Elecrow's published board pins.
 
-## Configure
+## First-time Wi-Fi setup
 
 1. Install [Visual Studio Code](https://code.visualstudio.com/) and the PlatformIO extension, or install the PlatformIO CLI.
-2. Copy `include/nostrand_config.example.h` to `include/nostrand_config.h`.
-3. Put your 2.4 GHz Wi-Fi name and password in `nostrand_config.h`.
-4. Set `API_BASE_URL` to a reachable deployment of this repository. For local testing, use the computer's LAN address, not `localhost` (for example, `http://192.168.1.42:5000`).
+2. Flash the firmware, then join the **Nostrand-Display** Wi-Fi network from a phone or computer.
+3. The captive setup page opens automatically. Choose your home Wi-Fi and enter its password. If it does not open, browse to `http://192.168.4.1`.
 
-`nostrand_config.h` is ignored by Git so Wi-Fi credentials are not committed.
+The ESP32 stores the Wi-Fi credentials in its own nonvolatile storage. They are never placed in this repository. The setup network times out after five minutes; press **RST** to try again.
+
+The firmware uses the live Railway deployment by default. To point it elsewhere, copy `include/nostrand_config.example.h` to `include/nostrand_config.h` and change `API_BASE_URL`. The override file is ignored by Git.
 
 ## Build and flash
 

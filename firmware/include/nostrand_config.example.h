@@ -1,13 +1,9 @@
 #pragma once
 
-// Copy this file to nostrand_config.h and replace these values.
-constexpr char WIFI_SSID[] = "YOUR_WIFI_NAME";
-constexpr char WIFI_PASSWORD[] = "YOUR_WIFI_PASSWORD";
-
+// The production backend for this repository. Copy this file to
+// nostrand_config.h only if you want to override these defaults.
 // Do not use localhost: the ESP32 needs a URL it can reach over Wi-Fi.
-// Local example: http://192.168.1.42:5000
-// Hosted example: https://trains.example.com
-constexpr char API_BASE_URL[] = "http://192.168.1.42:5000";
+constexpr char API_BASE_URL[] = "https://nostrand.up.railway.app";
 
 constexpr unsigned long REFRESH_INTERVAL_MS = 60UL * 1000UL;
 constexpr unsigned int FULL_REFRESH_EVERY = 15;

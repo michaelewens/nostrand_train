@@ -4,6 +4,7 @@
 #include <SPI.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
+#include <WiFiManager.h>
 
 #include <GxEPD2_BW.h>
 #include <Fonts/FreeSans9pt7b.h>
@@ -17,7 +18,6 @@
 #include "nostrand_config.h"
 #else
 #include "nostrand_config.example.h"
-#warning "Using placeholder config; copy nostrand_config.example.h to nostrand_config.h before flashing."
 #endif
 
 namespace Pins {
@@ -31,7 +31,6 @@ constexpr int EPD_POWER = 7;
 }  // namespace Pins
 
 constexpr int MAX_TRAINS = 4;
-constexpr unsigned long WIFI_TIMEOUT_MS = 15UL * 1000UL;
 
 struct Train {
   char route[2] = "";
@@ -188,6 +187,18 @@ void drawBootError(const char* heading, const char* detail) {
   drawCenteredText("See Serial Monitor at 115200 baud", display.width() / 2, 194);
 }
 
+void drawWifiSetup() {
+  display.fillScreen(GxEPD_WHITE);
+  display.setTextColor(GxEPD_BLACK);
+  display.setFont(&FreeSansBold18pt7b);
+  drawCenteredText("SET UP WI-FI", display.width() / 2, 86);
+  display.setFont(&FreeSans12pt7b);
+  drawCenteredText("Join the Nostrand-Display network on your phone", display.width() / 2, 132);
+  drawCenteredText("Then choose your home Wi-Fi in the setup page", display.width() / 2, 168);
+  display.setFont(&FreeSans9pt7b);
+  drawCenteredText("The setup network closes automatically after 5 minutes", display.width() / 2, 211);
+}
+
 template <typename DrawFunction>
 void updateDisplay(DrawFunction draw, bool fullRefresh) {
   if (fullRefresh) {
@@ -203,26 +214,26 @@ void updateDisplay(DrawFunction draw, bool fullRefresh) {
   display.powerOff();
 }
 
+void onConfigPortalStarted(WiFiManager*) {
+  Serial.println("Wi-Fi setup portal started: Nostrand-Display");
+  updateDisplay([] { drawWifiSetup(); }, true);
+}
+
 bool connectWifi() {
   if (WiFi.status() == WL_CONNECTED) return true;
 
   WiFi.mode(WIFI_STA);
-  WiFi.setSleep(false);
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  Serial.printf("Connecting to Wi-Fi %s", WIFI_SSID);
+  WiFiManager manager;
+  manager.setConnectTimeout(20);
+  manager.setConfigPortalTimeout(300);
+  manager.setAPCallback(onConfigPortalStarted);
 
-  const unsigned long startedAt = millis();
-  while (WiFi.status() != WL_CONNECTED && millis() - startedAt < WIFI_TIMEOUT_MS) {
-    delay(250);
-    Serial.print('.');
-  }
-  Serial.println();
-
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("Wi-Fi connection timed out");
+  if (!manager.autoConnect("Nostrand-Display")) {
+    Serial.println("Wi-Fi setup timed out");
     return false;
   }
 
+  WiFi.setSleep(false);
   Serial.print("Wi-Fi connected; IP: ");
   Serial.println(WiFi.localIP());
   return true;
@@ -322,7 +333,7 @@ void setup() {
   display.setRotation(DISPLAY_ROTATION);
 
   if (!connectWifi()) {
-    updateDisplay([] { drawBootError("WI-FI NOT CONNECTED", "Check nostrand_config.h"); }, true);
+    updateDisplay([] { drawBootError("WI-FI NOT CONNECTED", "Press RST to try setup again"); }, true);
     lastAttemptAt = millis();
     return;
   }

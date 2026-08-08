@@ -47,7 +47,7 @@ The server listens on port 5000 by default. Test the display endpoint at [http:/
 
 ## Program the CrowPanel
 
-The complete PlatformIO project, configuration steps, exact board pins, and flashing instructions are in [`firmware/README.md`](firmware/README.md).
+The complete PlatformIO project, captive-portal Wi-Fi setup, exact board pins, and flashing instructions are in [`firmware/README.md`](firmware/README.md). It uses the live backend at `https://nostrand.up.railway.app` by default.
 
 ## Checks
 
