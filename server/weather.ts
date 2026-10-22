@@ -1,8 +1,9 @@
 import { z } from "zod";
 import { weatherSchema, type Weather } from "@shared/schema";
 
-const LATITUDE = process.env.WEATHER_LATITUDE || "40.6804";
-const LONGITUDE = process.env.WEATHER_LONGITUDE || "-73.9496";
+// Read at call time so Workers vars (exposed on process.env via nodejs_compat) apply.
+const latitude = () => process.env.WEATHER_LATITUDE || "40.6804";
+const longitude = () => process.env.WEATHER_LONGITUDE || "-73.9496";
 const CACHE_TTL_MS = 10 * 60_000;
 const MAX_STALE_MS = 2 * 60 * 60_000;
 const RETRY_DELAY_MS = 30_000;
@@ -61,8 +62,8 @@ export function transformWeather(data: unknown): Weather {
 
 async function fetchFromOpenMeteo(): Promise<Weather> {
   const params = new URLSearchParams({
-    latitude: LATITUDE,
-    longitude: LONGITUDE,
+    latitude: latitude(),
+    longitude: longitude(),
     current: "temperature_2m,apparent_temperature,weather_code",
     daily: "temperature_2m_max,temperature_2m_min,precipitation_probability_max",
     temperature_unit: "fahrenheit",

@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { departureSchema, type Departure } from "@shared/schema";
 
-const TRANSITER_API_BASE = process.env.TRANSITER_API_BASE || "https://demo.transiter.dev";
+// Read at call time so Workers vars (exposed on process.env via nodejs_compat) apply.
+const transiterApiBase = () => process.env.TRANSITER_API_BASE || "https://demo.transiter.dev";
 const SYSTEM_ID = "us-ny-subway";
 const NOSTRAND_STOP_ID = "A46N";
 const CACHE_TTL_MS = 15_000;
@@ -69,7 +70,7 @@ export function transformDepartures(data: unknown, nowSeconds = Math.floor(Date.
 
 async function fetchFromTransiter(): Promise<Departure[]> {
   const response = await fetch(
-    `${TRANSITER_API_BASE}/systems/${SYSTEM_ID}/stops/${NOSTRAND_STOP_ID}`,
+    `${transiterApiBase()}/systems/${SYSTEM_ID}/stops/${NOSTRAND_STOP_ID}`,
     { signal: AbortSignal.timeout(8_000) },
   );
 

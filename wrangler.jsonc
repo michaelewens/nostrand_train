@@ -1,0 +1,27 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "nostrand-train",
+  "account_id": "02a17ab55c5fb26dc5d4613e35e5b0cb",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "preview_urls": false,
+  "alias": {
+    "@shared/schema": "./shared/schema.ts"
+  },
+  "assets": {
+    "directory": "./dist/public",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    // Worker runs first on every path so non-GET requests get index.html like Express.
+    "run_worker_first": true
+  },
+  // Optional settings, same as the Express server. Uncomment to override defaults.
+  // "vars": {
+  //   "TRANSITER_API_BASE": "https://demo.transiter.dev",
+  //   "WEATHER_LATITUDE": "40.6804",
+  //   "WEATHER_LONGITUDE": "-73.9496"
+  // },
+  "observability": { "enabled": true }
+}
