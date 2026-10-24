@@ -48,7 +48,11 @@ The server listens on port 5000 by default. Test the display endpoint at [http:/
 
 ## Program the CrowPanel
 
-The complete PlatformIO project, captive-portal Wi-Fi setup, exact board pins, and flashing instructions are in [`firmware/README.md`](firmware/README.md). It uses the live backend at `https://nostrand.up.railway.app` by default.
+The complete PlatformIO project, captive-portal Wi-Fi setup, exact board pins, and flashing instructions are in [`firmware/README.md`](firmware/README.md). It uses the live backend at `https://nostrand.michaelewens.com` by default.
+
+## Production
+
+The live backend is the Cloudflare Worker `nostrand-train` (`worker/`, config in `wrangler.jsonc`), served at `https://nostrand.michaelewens.com` and `https://nostrand-train.michael-ewens.workers.dev`. Deploy with `npm run deploy:worker`. The Node server above is for local development.
 
 The ESP32 must remain powered to fetch updates. It can use a USB wall adapter instead of a computer; an unpowered e-paper panel simply retains its last image.
 

@@ -10,7 +10,7 @@ This PlatformIO project targets Elecrow model **DIS08792E**: the ESP32-S3 CrowPa
 
 The ESP32 stores the Wi-Fi credentials in its own nonvolatile storage. They are never placed in this repository. The setup network times out after five minutes; press **RST** to try again.
 
-The firmware uses the live Railway deployment by default. To point it elsewhere, copy `include/nostrand_config.example.h` to `include/nostrand_config.h` and change `API_BASE_URL`. The override file is ignored by Git.
+The firmware uses the live Cloudflare deployment (`https://nostrand.michaelewens.com`) by default. To point it elsewhere, copy `include/nostrand_config.example.h` to `include/nostrand_config.h` and change `API_BASE_URL`. The override file is ignored by Git.
 
 ## Build and flash
 
@@ -26,7 +26,7 @@ If automatic upload does not start, hold **BOOT**, tap **RST**, release **BOOT**
 
 The screen refreshes once per minute. Push the rotary switch down for an immediate refresh; one press triggers one update. Most updates use the panel's fast partial mode; every 15th update is a full refresh to control ghosting. On a network/API error it leaves the last useful screen in place and retries later. Routine reconnects never launch the setup portal or overwrite the dashboard.
 
-HTTPS responses are verified against the ISRG Root X1 certificate used by the Railway backend. If an `API_BASE_URL` override uses a different certificate authority, update `API_ROOT_CA` in the same private configuration file.
+HTTPS responses are verified against a bundle of five root certificates (ISRG Root X1/X2, GTS Root R1/R4, GlobalSign Root CA), so a certificate-authority change at Cloudflare does not break the display. If an `API_BASE_URL` override uses a different certificate authority, update `API_ROOT_CA` in the same private configuration file.
 
 Countdowns are left-aligned by default. To restore the saved relative-time layout, copy `include/nostrand_config.example.h` to `include/nostrand_config.h` and change:
 
